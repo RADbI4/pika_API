@@ -36,6 +36,12 @@ class WorkDIn(Queues):
     msg_routing_key = 'work_d_in'
 
 
+class GoogeCloudIn(Queues):
+    # Параметры подключения к очереди g_cloud_in
+    queue = 'g_cloud_in'
+    msg_routing_key = 'g_cloud_in'
+
+
 class YaDiskIn(Queues):
     # Параметры подключения к очереди ya_disk_in
     queue = 'ya_disk_in'

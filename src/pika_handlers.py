@@ -1,5 +1,6 @@
 import pika as p
 import const as c
+from contextlib import contextmanager
 
 
 class RabbitMQHandler:
@@ -45,6 +46,21 @@ class RabbitMQHandler:
 
     def broker_close(self):
         self.conn_broker.close()
+
+    @contextmanager
+    def rabbit_connector(**kwargs):
+        """
+        Контекстный менеджер по
+        подключение к очередям RabbitMQ
+        и закрытию коннекта к нему.
+        :return:
+        """
+        agent = RabbitMQHandler(kwargs.get('conn'))
+        agent.queue_bind(kwargs.get('queue'))
+        try:
+            yield agent
+        finally:
+            agent.broker_close()
 
 
 # def agent_consumer(callback, conn, **kwargs):
