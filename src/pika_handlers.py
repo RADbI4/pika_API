@@ -1,77 +1,73 @@
-import os
-import pika
-from functools import partial
+import pika as p
+import const as c
 
 
-class RabbitMQHandlerFactory:
+class RabbitMQHandler:
     """
-    Фабрика по созданию обработчиков RabbitMQ
-    """
-
-    def __init__(self):
-        self.exchange = ''
-        self.connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
-        self.channel = self.connection.channel()
-
-    def publisher_handler(self, **que_args):
-        """
-        Publisher сообщений в очереди.
-        :return:
-        """
-        queue = que_args.get('queue')
-        routing_key = que_args.get('routing_key')
-        self.channel.queue_declare(queue=queue)
-        return partial(self.channel.basic_publish, exchange=self.exchange, routing_key=routing_key)
-
-    def consumer_handler(self, **que_args):
-        """
-        Consumer сообщений очереди.
-        :return:
-        """
-        queue = que_args.get('queue')
-        self.channel.queue_declare(queue=queue)
-        self.channel.basic_consume(queue=queue, auto_ack=que_args.get('auto_ack'),
-                                   on_message_callback=que_args.get('callback_func'))
-        return self.channel.start_consuming()
-
-
-class RabbitMQAmpq_conn:
-    """
-    Класс для подключения к серверу RabbitMQ.
-    """
-    username = os.environ.get('')
-    pswd = os.environ.get('')
-    host = os.environ.get('')
-    virt_host = os.environ.get('')
-
-
-class Queues:
-    """
-    Класс всех существующих очередей
+    Фабрика по созданию обработчиков RabbitMQ очередей
     """
 
-    """
-    Параметры подключения к очереди work_d_out
-    """
-    work_d_out_params = {
-        'queue': 'work_d_out',
-        'routing_key': 'work_d_out',
-        'auto_ack': True,
-    }
+    def __init__(self, host, username=None, password=None):
+        self.host = host
+        if self.host != 'localhost':
+            creds = p.PlainCredentials(username, password)
+            conn_params = p.ConnectionParameters(host=self.host, credentials=creds, port=15672)
+        else:
+            conn_params = p.ConnectionParameters(host)
+        self.conn_broker = p.BlockingConnection(conn_params)
+        self.channel = self.conn_broker.channel()
+        self.channel.basic_qos(prefetch_count=1)  # message consume count
+        self.queues = []
+        self.priority = None
+        self.durable = True
 
-    """
-    Параметры подключения к очереди work_d_in
-    """
-    work_d_in_params = {
-        'queue': 'work_d_in',
-        'routing_key': 'work_d_in',
-        'auto_ack': True,
-        'callback_func': None
-    }
+    def queue_bind(self, q_cls):
+        self.channel.queue_declare(queue=q_cls.queue, durable=self.durable)
+        self.queues.append(q_cls.queue)
+
+    def start_consuming(self, agent_func):
+        for queue in self.queues:
+            self.channel.basic_consume(on_message_callback=agent_func, queue=queue)
+        self.channel.start_consuming()
+
+    def publish_message(self, msg, queue_cls, headers={}):
+        self.channel.basic_publish(
+            exchange='',
+            routing_key=queue_cls.msg_routing_key,
+            body=msg,
+            properties=p.BasicProperties(
+                content_type='application/json',
+                delivery_mode=2,
+                headers=headers,
+                priority=self.priority
+            ),
+        )
+
+    def broker_close(self):
+        self.conn_broker.close()
+
+
+# def agent_consumer(callback, conn, **kwargs):
+#     agent = RabbitMQHandler(conn)
+#     agent.queue_bind(c.WorkDIn)
+#     agent.start_consuming(agent_func=callback)
+#     agent.broker_close()
+#
+#
+# def agent_publisher(msg, queue, conn):
+#     agent_pub = RabbitMQHandler(conn)
+#     agent_pub.queue_bind(queue)
+#     agent_pub.send_message(msg=msg, queue_cls=queue)
+#     agent_pub.broker_close()
+#
+#
+# def callback(ch, method, properties, body):
+#     print("Recieved_message")
+#     ch.basic_ack(method.delivery_tag)
+#     print('Basick_acked')
+
 
 if __name__ == "__main__":
-    # telegram_publish = RabbitMQHandlerFactory().publisher_handler(**Queues.work_d_in_params)
-    # telegram_publish(body='hello')
-    # Queues.work_d_in_params['callback_func'] = callback
-    # agent = RabbitMQHandlerFactory().consumer_handler(**Queues.work_d_in_params)
+    # agent_publisher(msg='Hello_world', queue=c.WorkDIn, conn=c.RabbitMQ_conn.local_host)
+    # agent_consumer(callback=callback, conn=c.RabbitMQ_conn.local_host)
     pass
