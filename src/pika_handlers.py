@@ -1,5 +1,4 @@
 import pika as p
-import const as c
 from contextlib import contextmanager
 
 
@@ -47,6 +46,7 @@ class RabbitMQHandler:
     def broker_close(self):
         self.conn_broker.close()
 
+    @staticmethod
     @contextmanager
     def rabbit_connector(**kwargs):
         """
