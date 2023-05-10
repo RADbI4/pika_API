@@ -28,6 +28,7 @@ class RabbitMQHandler:
     def start_consuming(self, agent_func):
         for queue in self.queues:
             self.channel.basic_consume(on_message_callback=agent_func, queue=queue)
+        print(' [*] Waiting for messages, press CTRL+C to exit')
         self.channel.start_consuming()
 
     def publish_message(self, msg, queue_cls, headers={}):
